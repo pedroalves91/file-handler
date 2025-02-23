@@ -19,7 +19,7 @@ export class HealthService {
 
     const healthCheck = this.healthIndicatorService.check('cpu');
 
-    if (cpuPressure < 90) {
+    if (cpuPressure < 95) {
       return healthCheck.up({
         pressure: `${cpuPressure.toFixed(2)}%`,
         cores: cpuCount,
@@ -39,7 +39,7 @@ export class HealthService {
 
     const healthCheck = this.healthIndicatorService.check('memory');
 
-    if (usedMemPercentage < 90) {
+    if (usedMemPercentage < 95) {
       return healthCheck.up({
         total: `${(totalMem / 1024 / 1024 / 1024).toFixed(2)}GB`,
         free: `${(freeMem / 1024 / 1024 / 1024).toFixed(2)}GB`,
