@@ -1,7 +1,11 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import * as path from 'path';
 import pLimit from 'p-limit';
-import * as fs from 'fs';
+import * as fs from 'fs/promises';
 import { v4 as uuidv4 } from 'uuid';
 
 const UPLOADS_DIR = path.resolve(process.cwd(), 'uploads');
@@ -11,49 +15,50 @@ const limit = pLimit(MAX_CONCURRENT_JOBS);
 @Injectable()
 export class FileService {
   constructor() {
-    // Ensure uploads directory exists
-    if (!fs.existsSync(UPLOADS_DIR)) {
-      fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-    }
+    fs.mkdir(UPLOADS_DIR, { recursive: true }).catch(
+      (err: NodeJS.ErrnoException) => {
+        throw new InternalServerErrorException(
+          `Failed to create uploads directory: ${err.message}`,
+        );
+      },
+    );
   }
 
   async saveFile(file: Express.Multer.File): Promise<string> {
-    if (!file || !file.originalname) {
+    if (!file?.buffer || !file.originalname) {
       throw new BadRequestException('Invalid file uploaded');
     }
 
-    // Generate a safe file path
     const safeFilename = `${uuidv4()}-${file.originalname.replace(/\s+/g, '_')}`;
     const filePath = path.join(UPLOADS_DIR, safeFilename);
 
-    return new Promise((resolve, reject) => {
-      const handleError = () =>
-        reject(new BadRequestException('Error saving file'));
-
-      if (file.buffer) {
-        fs.writeFile(filePath, file.buffer, (err) => {
-          if (err) handleError();
-          else resolve(filePath);
-        });
-        return;
+    try {
+      await fs.writeFile(filePath, file.buffer);
+      return filePath;
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new BadRequestException(`Failed to save file: ${error.message}`);
       }
-
-      reject(new BadRequestException('No valid file data found'));
-    });
+      throw new BadRequestException('Failed to save file: Unknown error');
+    }
   }
 
-  async processFiles(files: Express.Multer.File[]): Promise<void> {
-    if (!files || files.length === 0) {
+  async processFiles(files: Express.Multer.File[]): Promise<string[]> {
+    if (!files?.length) {
       throw new BadRequestException('No files uploaded');
     }
 
-    const fileProcessingPromises = files.map((file) =>
-      limit(() => this.saveFile(file)),
-    );
-
-    const results = await Promise.all(fileProcessingPromises);
-
-    const successfulFiles = results.filter((result) => result !== null);
-    console.log(successfulFiles);
+    try {
+      return await Promise.all(
+        files.map((file) => limit(() => this.saveFile(file))),
+      );
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new BadRequestException(
+          `Failed to process files: ${error.message}`,
+        );
+      }
+      throw new BadRequestException('Failed to process files: Unknown error');
+    }
   }
 }

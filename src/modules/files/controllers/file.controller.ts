@@ -43,11 +43,12 @@ export class FileController {
       `Files uploaded: ${files.map((file) => file.originalname).join(', ')}`,
     );
 
-    await this.fileService.processFiles(files);
+    const savedFilePaths = await this.fileService.processFiles(files);
 
     return {
       message: 'Files uploaded and processed successfully',
       filenames: files.map((file) => file.originalname),
+      paths: savedFilePaths,
     };
   }
 }
