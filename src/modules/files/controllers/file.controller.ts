@@ -39,10 +39,6 @@ export class FileController {
       throw new BadRequestException('No files uploaded.');
     }
 
-    console.log(
-      `Files uploaded: ${files.map((file) => file.originalname).join(', ')}`,
-    );
-
     const savedFilePaths = await this.fileService.processFiles(files);
 
     return {

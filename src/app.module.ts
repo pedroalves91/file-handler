@@ -6,9 +6,11 @@ import { AuthModule } from './modules/auth/auth.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { FileModule } from './modules/files/file.module';
 import { APP_GUARD } from '@nestjs/core';
+import { LoggerModule } from './shared/logger/logger.module';
 
 @Module({
   imports: [
+    LoggerModule,
     ConfigModule.forRoot({
       isGlobal: true,
       load: [configs],

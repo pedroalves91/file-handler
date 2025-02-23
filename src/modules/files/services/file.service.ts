@@ -7,6 +7,7 @@ import * as path from 'path';
 import pLimit from 'p-limit';
 import * as fs from 'fs/promises';
 import { v4 as uuidv4 } from 'uuid';
+import { AppLogger } from '../../../shared/logger/app.logger';
 
 const UPLOADS_DIR = path.resolve(process.cwd(), 'uploads');
 const MAX_CONCURRENT_JOBS = 5; // Limit concurrent file processing
@@ -14,7 +15,7 @@ const limit = pLimit(MAX_CONCURRENT_JOBS);
 
 @Injectable()
 export class FileService {
-  constructor() {
+  constructor(private readonly appLogger: AppLogger) {
     fs.mkdir(UPLOADS_DIR, { recursive: true }).catch(
       (err: NodeJS.ErrnoException) => {
         throw new InternalServerErrorException(
@@ -25,6 +26,8 @@ export class FileService {
   }
 
   async saveFile(file: Express.Multer.File): Promise<string> {
+    this.appLogger.log(`Saving file: ${file.originalname}`);
+
     if (!file?.buffer || !file.originalname) {
       throw new BadRequestException('Invalid file uploaded');
     }
