@@ -8,6 +8,7 @@ import {
 import { FileService } from '../services/file.service';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
+import { RequestId } from '../../../shared/decorators/request-id.decorator';
 
 @Controller('/files')
 export class FileController {
@@ -34,12 +35,18 @@ export class FileController {
       },
     }),
   )
-  async uploadMultipleFiles(@UploadedFiles() files: Express.Multer.File[]) {
+  async uploadMultipleFiles(
+    @UploadedFiles() files: Express.Multer.File[],
+    @RequestId() requestId: string,
+  ) {
     if (!files || files.length === 0) {
       throw new BadRequestException('No files uploaded.');
     }
 
-    const savedFilePaths = await this.fileService.processFiles(files);
+    const savedFilePaths = await this.fileService.processFiles(
+      files,
+      requestId,
+    );
 
     return {
       message: 'Files uploaded and processed successfully',

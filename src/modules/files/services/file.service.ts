@@ -25,10 +25,15 @@ export class FileService {
     );
   }
 
-  async saveFile(file: Express.Multer.File): Promise<string> {
-    this.appLogger.log(`Saving file: ${file.originalname}`);
-
+  async saveFile(
+    file: Express.Multer.File,
+    requestId: string,
+  ): Promise<string> {
     if (!file?.buffer || !file.originalname) {
+      this.appLogger.error('Invalid file uploaded', {
+        requestId,
+        fileName: file?.originalname,
+      });
       throw new BadRequestException('Invalid file uploaded');
     }
 
@@ -37,6 +42,14 @@ export class FileService {
 
     try {
       await fs.writeFile(filePath, file.buffer);
+
+      this.appLogger.log('File uploaded successfully', {
+        requestId,
+        fileName: file.originalname,
+        fileSize: file.size,
+        filePath,
+      });
+
       return filePath;
     } catch (error) {
       if (error instanceof Error) {
@@ -46,15 +59,35 @@ export class FileService {
     }
   }
 
-  async processFiles(files: Express.Multer.File[]): Promise<string[]> {
+  async processFiles(
+    files: Express.Multer.File[],
+    requestId: string,
+  ): Promise<string[]> {
     if (!files?.length) {
       throw new BadRequestException('No files uploaded');
     }
 
+    const startTime = Date.now();
+    this.appLogger.log('Started file processing', {
+      requestId,
+      fileCount: files.length,
+    });
+
     try {
-      return await Promise.all(
-        files.map((file) => limit(() => this.saveFile(file))),
+      const processedFiles = await Promise.all(
+        files.map((file) => limit(() => this.saveFile(file, requestId))),
       );
+
+      const endTime = Date.now();
+      const processingDuration = endTime - startTime;
+
+      this.appLogger.log('Files processed successfully', {
+        requestId,
+        processedFiles,
+        duration: `${processingDuration}ms`,
+      });
+
+      return processedFiles;
     } catch (error) {
       if (error instanceof Error) {
         throw new BadRequestException(
