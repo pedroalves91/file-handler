@@ -2,7 +2,7 @@
   "name": "file-handler",
   "version": "0.0.1",
   "description": "",
-  "author": "",
+  "author": "Pedro Alves",
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
