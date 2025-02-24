@@ -12,12 +12,14 @@ import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { LoginDto } from '../dtos/login.dto';
 import { AccessToken } from '../interfaces/access-token.interface';
+import { AppLogger } from '../../../shared/logger/app.logger';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly usersService: UserService,
     private readonly jwtService: JwtService,
+    private readonly appLogger: AppLogger,
   ) {}
 
   async register(createUserDto: CreateUserDto): Promise<AccessToken> {
@@ -44,7 +46,7 @@ export class AuthService {
       });
       return { accessToken };
     } catch (error) {
-      console.error(error);
+      this.appLogger.error(error);
       throw new InternalServerErrorException('Registration failed');
     }
   }
@@ -68,7 +70,7 @@ export class AuthService {
 
       return { accessToken };
     } catch (error) {
-      console.error(error);
+      this.appLogger.error(error);
       throw new InternalServerErrorException('Login failed');
     }
   }

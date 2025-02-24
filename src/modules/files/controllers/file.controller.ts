@@ -9,6 +9,7 @@ import { FileService } from '../services/file.service';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { RequestId } from '../../../shared/decorators/request-id.decorator';
+import { FileUpload } from '../interfaces/file-upload.interface';
 
 @Controller('/files')
 export class FileController {
@@ -38,7 +39,7 @@ export class FileController {
   async uploadMultipleFiles(
     @UploadedFiles() files: Express.Multer.File[],
     @RequestId() requestId: string,
-  ) {
+  ): Promise<FileUpload> {
     if (!files || files.length === 0) {
       throw new BadRequestException('No files uploaded.');
     }
