@@ -25,6 +25,31 @@ export class FileService {
     );
   }
 
+  private async retryWithExponentialBackoff<T>(
+    fn: () => Promise<T>,
+    retries: number = 5,
+    delay: number = 1000,
+  ): Promise<void> {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        await fn();
+        return;
+      } catch (error) {
+        if (attempt === retries) throw error;
+        const backoffDelay = delay * Math.pow(2, attempt - 1);
+        this.appLogger.error(
+          `Retry attempt ${attempt} failed. Retrying in ${backoffDelay}ms...`,
+        );
+        await this.delay(backoffDelay);
+      }
+    }
+    throw new Error('Unknown error occurred');
+  }
+
+  private delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
   async saveFile(
     file: Express.Multer.File,
     requestId: string,
@@ -41,7 +66,9 @@ export class FileService {
     const filePath = path.join(UPLOADS_DIR, safeFilename);
 
     try {
-      await fs.writeFile(filePath, file.buffer);
+      await this.retryWithExponentialBackoff(() =>
+        fs.writeFile(filePath, file.buffer),
+      );
 
       this.appLogger.log('File uploaded successfully', {
         requestId,
