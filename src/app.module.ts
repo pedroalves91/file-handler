@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { HealthModule } from './modules/health/health.module';
 import configs from '../config/configs';
 import { ConfigModule } from '@nestjs/config';
@@ -7,6 +7,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { FileModule } from './modules/files/file.module';
 import { APP_GUARD } from '@nestjs/core';
 import { LoggerModule } from './shared/logger/logger.module';
+import { DynamicRateLimiterMiddleware } from './shared/middleware/dynamic-rate-limiter.middleware';
 
 @Module({
   imports: [
@@ -32,4 +33,8 @@ import { LoggerModule } from './shared/logger/logger.module';
     },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(DynamicRateLimiterMiddleware).forRoutes('*');
+  }
+}
