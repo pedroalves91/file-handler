@@ -40,60 +40,120 @@ $ npm run start
 
 # watch mode
 $ npm run start:dev
-
-# production mode
-$ npm run start:prod
 ```
 
 ## Run tests
 
 ```bash
-# unit tests
+# run tests
 $ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
 ```
 
-## Deployment
+## File Upload Endpoint Documentation
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+The file upload endpoint allows users to upload multiple CSV files (up to 10 files at a time) with a maximum file size of 250MB per file. The files are processed concurrently, and their paths are returned upon successful upload.
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+### Request Example
 
 ```bash
-$ npm install -g mau
-$ mau deploy
+curl -X POST http://localhost:3000/files/upload \
+  -H "Content-Type: multipart/form-data" \
+  -H "x-request-id: request-id" \
+  -F "files=@file1.csv" \
+  -F "files=@file2.csv"
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### Success Response (HTTP 200)
 
-## Resources
+```json
+{
+  "message": "Files uploaded and processed successfully",
+  "filenames": ["file1.csv", "file2.csv"],
+  "paths": [
+    "/path/to/uploads/uuid-file1.csv",
+    "/path/to/uploads/uuid-file2.csv"
+  ]
+}
+```
 
-Check out a few resources that may come in handy when working with NestJS:
+### Error Response (HTTP 400)
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+```json
+{
+  "statusCode": 400,
+  "message": "No files uploaded."
+}
+```
 
-## Support
+### Error Response (HTTP 429)
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+```json
+{
+  "statusCode": 429,
+  "message": "Too Many Requests"
+}
+```
 
-## Stay in touch
+### Expected Behavior Under Load
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+1. Concurrency:
+- The endpoint processes up to 5 files concurrently using p-limit.
+- If more than 5 files are uploaded, the additional files are queued and processed sequentially.
+2. Rate Limiting:
+- The endpoint is protected by a dynamic rate limiter:
+    - Default rate limit: 6 requests per minute.
+    - If the system is under stress (CPU or memory usage is high), the rate limit is reduced to 2 requests per minute.
+3. File Size and Count:
+- Maximum file size: 250MB.
+- Maximum number of files per request: 10.
+4. Retry Mechanism:
+- If file saving fails, the system retries the operation up to 5 times with exponential backoff.
+5. Logging:
+- All file uploads and errors are logged for monitoring and debugging purposes.
 
-## License
+### Common Errors
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+#### No Files Uploaded (HTTP 400):
+
+```json
+{
+  "statusCode": 400,
+  "message": "No files uploaded."
+}
+```
+
+#### Invalid File Type (HTTP 400):
+
+```json
+{
+  "statusCode": 400,
+  "message": "Only CSV files are allowed!"
+}
+```
+
+#### File Too Large (HTTP 400):
+
+```json
+{
+  "statusCode": 400,
+  "message": "File size exceeds the limit of 250MB."
+}
+```
+
+#### Too Many Requests (HTTP 429):
+
+```json
+{
+  "statusCode": 429,
+  "message": "Too Many Requests"
+}
+```
+
+#### Internal Server Error (HTTP 500):
+
+```json
+{
+  "statusCode": 500,
+  "message": "Failed to save file: <error details>"
+}
+```

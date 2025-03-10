@@ -1,10 +1,40 @@
-import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { HealthModule } from './modules/health/health.module';
+import configs from '../config/configs';
+import { ConfigModule } from '@nestjs/config';
+import { AuthModule } from './modules/auth/auth.module';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { FileModule } from './modules/files/file.module';
+import { APP_GUARD } from '@nestjs/core';
+import { LoggerModule } from './shared/logger/logger.module';
+import { DynamicRateLimiterMiddleware } from './shared/middleware/dynamic-rate-limiter.middleware';
 
 @Module({
-  imports: [],
-  controllers: [AppController],
-  providers: [AppService],
+  imports: [
+    LoggerModule,
+    ConfigModule.forRoot({
+      isGlobal: true,
+      load: [configs],
+    }),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 10000, // 10 seconds
+        limit: 1, // 1 request per 10 seconds
+      },
+    ]),
+    HealthModule,
+    AuthModule,
+    FileModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(DynamicRateLimiterMiddleware).forRoutes('*');
+  }
+}
